@@ -1,0 +1,61 @@
+version: '3'
+services:
+    bloodbank-mysql:
+        image: mysql:8.0.18
+        container_name: bloodbank-mysql
+        ports:
+            - "33016:3306"     
+        environment:
+            - MYSQL_ROOT_PASSWORD=root
+        volumes:
+            - d:/bloodbankdb:/var/lib/mysql
+            - ./dbscripts:/docker-entrypoint-initdb.d 
+    eureka-discovery-service:
+        image: eureka-discovery-app
+        build: eureka-discovery-service/.
+        container_name: eureka-discovery-service
+        ports:
+          - 8796:8761
+    authentication-service:
+        image: authentication-app
+        build: authentication-service/.
+        container_name: authentication-service
+        ports:
+          - 8017:8091      
+        depends_on:
+          - bloodbank-mysql
+          - eureka-discovery-service
+        links:
+          - bloodbank-mysql
+          - eureka-discovery-service
+    blood-service:
+        image: blood-app
+        build: blood-service/.
+        container_name: blood-service
+        ports:
+          - 8026:8086
+        depends_on:
+          - bloodbank-mysql
+          - eureka-discovery-service    
+        links:
+          - bloodbank-mysql
+          - eureka-discovery-service
+    zuul-gateway-service:
+        image: zuul-gateway-app
+        build: zuul-gateway-service/.
+        container_name: zuul-gateway-service
+        ports:
+          - 8018:8087     
+        depends_on:
+          - authentication-service
+          - blood-service
+        links:
+          - authentication-service
+          - blood-service
+    angular: 
+        build: webapp/.
+        container_name: angular-docker-bloodbank
+        image: bloodbank-angular-image
+        network_mode: host
+        ports: 
+            - "4200:4200"
